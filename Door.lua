@@ -1,7 +1,6 @@
 -- ====================================================================
--- DOORS AUTOMATION SCRIPT WITH MOBILE-FRIENDLY UI
+-- DOORS AUTOMATION SCRIPT WITH WORKING AUTO UNLOCK & MOBILE UI
 -- Target Game: DOORS (Roblox)
--- Responsive UI scaled using Scale/Constraint for all aspect ratios
 -- ====================================================================
 
 local CoreGui = game:GetService("CoreGui")
@@ -19,16 +18,16 @@ local Config = {
     AutoUnlock = false,
     SpeedHack = false,
     CustomSpeed = 22,
-    InteractRadius = 15
+    InteractRadius = 18
 }
 
--- Destroy old UI if re-executing
+-- Old UI Clean Up
 if CoreGui:FindFirstChild("DoorsCheatUI") then
     CoreGui.DoorsCheatUI:Destroy()
 end
 
 -- ====================================================================
--- UI BUILDING (Mobile & Tablet Friendly)
+-- MOBILE RESPONSIVE UI
 -- ====================================================================
 
 local ScreenGui = Instance.new("ScreenGui")
@@ -36,10 +35,9 @@ ScreenGui.Name = "DoorsCheatUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = CoreGui
 
--- Main Container Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0.35, 0, 0.45, 0) -- Relative scale for responsiveness
+MainFrame.Size = UDim2.new(0.38, 0, 0.48, 0)
 MainFrame.Position = UDim2.new(0.05, 0, 0.25, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 MainFrame.BorderSizePixel = 0
@@ -47,7 +45,6 @@ MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
 
--- Aspect Ratio / Scale Constraints
 local UIAspectRatioConstraint = Instance.new("UIAspectRatioConstraint")
 UIAspectRatioConstraint.AspectRatio = 1.3
 UIAspectRatioConstraint.Parent = MainFrame
@@ -61,7 +58,6 @@ UIStroke.Color = Color3.fromRGB(80, 80, 80)
 UIStroke.Thickness = 2
 UIStroke.Parent = MainFrame
 
--- Header Title Bar
 local Header = Instance.new("Frame")
 Header.Name = "Header"
 Header.Size = UDim2.new(1, 0, 0.2, 0)
@@ -84,7 +80,6 @@ TitleText.Font = Enum.Font.FredokaOne
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
 TitleText.Parent = Header
 
--- Content Container
 local ContentFrame = Instance.new("Frame")
 ContentFrame.Name = "ContentFrame"
 ContentFrame.Size = UDim2.new(1, 0, 0.8, 0)
@@ -99,7 +94,6 @@ UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Parent = ContentFrame
 
--- Helper Function: Create Toggle Row (Matching Image Style)
 local function createToggleRow(name, key, layoutOrder)
     local RowFrame = Instance.new("Frame")
     RowFrame.Size = UDim2.new(0.9, 0, 0.25, 0)
@@ -120,7 +114,7 @@ local function createToggleRow(name, key, layoutOrder)
     local ToggleButton = Instance.new("TextButton")
     ToggleButton.Size = UDim2.new(0.25, 0, 0.8, 0)
     ToggleButton.Position = UDim2.new(0.75, 0, 0.1, 0)
-    ToggleButton.BackgroundColor3 = Color3.fromRGB(215, 45, 45) -- Default RED (OFF)
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(215, 45, 45)
     ToggleButton.Text = ""
     ToggleButton.AutoButtonColor = true
     ToggleButton.Parent = RowFrame
@@ -129,24 +123,22 @@ local function createToggleRow(name, key, layoutOrder)
     ButtonCorner.CornerRadius = UDim.new(0, 8)
     ButtonCorner.Parent = ToggleButton
 
-    -- Click Event Hook
     ToggleButton.MouseButton1Click:Connect(function()
         Config[key] = not Config[key]
         if Config[key] then
-            ToggleButton.BackgroundColor3 = Color3.fromRGB(45, 215, 45) -- GREEN (ON)
+            ToggleButton.BackgroundColor3 = Color3.fromRGB(45, 215, 45)
         else
-            ToggleButton.BackgroundColor3 = Color3.fromRGB(215, 45, 45) -- RED (OFF)
+            ToggleButton.BackgroundColor3 = Color3.fromRGB(215, 45, 45)
         end
     end)
 end
 
--- Render Toggles
 createToggleRow("AUTO INTERACT", "AutoInteract", 1)
 createToggleRow("AUTO UNLOCK", "AutoUnlock", 2)
 createToggleRow("SPEED HACK", "SpeedHack", 3)
 
 -- ====================================================================
--- AUTOMATION MECHANICS
+-- AUTOMATION & FIXES
 -- ====================================================================
 
 LocalPlayer.CharacterAdded:Connect(function(newChar)
@@ -154,7 +146,7 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
     Humanoid = newChar:WaitForChild("Humanoid")
 end)
 
--- Speed Adjuster Loop
+-- Speed Hack
 RunService.Heartbeat:Connect(function()
     if Config.SpeedHack and Humanoid and Humanoid.Parent then
         if Humanoid.MoveDirection.Magnitude > 0 then
@@ -163,30 +155,55 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Auto Interact & Unlock Loop
+-- Auto Unlock Handler (Direct Key Interaction Fix)
+local function tryUnlockDoor(lockPart)
+    local keyTool = Character:FindFirstChild("Key") or LocalPlayer.Backpack:FindFirstChild("Key")
+    if keyTool then
+        -- Equip key automatically
+        if keyTool.Parent == LocalPlayer.Backpack then
+            keyTool.Parent = Character
+        end
+        -- Trigger doors unlock module event
+        pcall(function()
+            if lockPart:FindFirstChild("LockPrompt") then
+                fireproximityprompt(lockPart.LockPrompt)
+            elseif lockPart:FindFirstChild("UnlockEvent") then
+                lockPart.UnlockEvent:FireServer()
+            end
+        end)
+    end
+end
+
+-- Main Task Loop
 task.spawn(function()
-    while task.wait(0.2) do
-        if (Config.AutoInteract or Config.AutoUnlock) and Character and Character:FindFirstChild("HumanoidRootPart") then
+    while task.wait(0.15) do
+        if Character and Character:FindFirstChild("HumanoidRootPart") then
             local RootPart = Character.HumanoidRootPart
 
-            for _, desc in ipairs(Workspace:GetDescendants()) do
-                if desc:IsA("ProximityPrompt") and desc.Enabled then
-                    local parentObj = desc.Parent
-                    if parentObj and parentObj:IsA("BasePart") then
-                        local distance = (RootPart.Position - parentObj.Position).Magnitude
+            -- AUTO UNLOCK SCAN
+            if Config.AutoUnlock then
+                for _, obj in ipairs(Workspace:GetDescendants()) do
+                    if (obj.Name == "Lock" or obj.Name == "Keyhole") and obj:IsA("BasePart") then
+                        if (RootPart.Position - obj.Position).Magnitude <= Config.InteractRadius then
+                            tryUnlockDoor(obj)
+                        end
+                    end
+                end
+            end
 
-                        if distance <= Config.InteractRadius then
-                            -- Auto Unlock
-                            if Config.AutoUnlock and (string.find(string.lower(parentObj.Name), "keyhole") or string.find(string.lower(parentObj.Name), "lock")) then
-                                pcall(function() fireproximityprompt(desc) end)
-                            -- Auto Interact
-                            elseif Config.AutoInteract then
+            -- AUTO INTERACT SCAN
+            if Config.AutoInteract then
+                for _, desc in ipairs(Workspace:GetDescendants()) do
+                    if desc:IsA("ProximityPrompt") and desc.Enabled then
+                        if desc.Parent and desc.Parent:IsA("BasePart") then
+                            if (RootPart.Position - desc.Parent.Position).Magnitude <= Config.InteractRadius then
                                 pcall(function() fireproximityprompt(desc) end)
                             end
                         end
                     end
                 end
             end
+
         end
     end
 end)
